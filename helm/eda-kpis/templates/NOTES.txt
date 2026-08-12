@@ -2,11 +2,11 @@ Portal chart deployed to namespace "{{ .Release.Namespace }}" (release "{{ .Rele
 
 Enabled services:
 {{- range $name, $rawSvc := .Values.services }}
-{{- $svc := include "portal.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- $svc := include "eda-kpis.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
 {{- if $svc.enabled }}
   - {{ $name }} ({{ $svc.type }})
 {{- if and $svc.service.enabled (eq $svc.type "deployment") }}
-    Service:  {{ include "portal.serviceFullname" (dict "root" $ "serviceName" $name) }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $svc.service.port | default 80 }}
+    Service:  {{ include "eda-kpis.serviceFullname" (dict "root" $ "serviceName" $name) }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $svc.service.port | default 80 }}
 {{- end }}
 {{- if $svc.ingress.enabled }}
 {{- range $svc.ingress.hosts }}
