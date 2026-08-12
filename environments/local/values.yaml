@@ -36,8 +36,8 @@ services:
     replicaCount: 1
     containerPort: 8080
     image:
-      # Built locally: docker build -t eda-kpis:local .
-      # Then loaded into the kind cluster: kind load docker-image eda-kpis:local
+      # Built locally: docker build -t eda-kpis-frontend:v1 .
+      # Then loaded into the kind cluster: kind load docker-image eda-kpis-frontend:v1
       repository: eda-kpis-frontend
       tag: "v1"
       # Never (not IfNotPresent/Always): this image exists ONLY inside the
@@ -69,8 +69,8 @@ services:
     replicaCount: 1
     containerPort: 3000
     image:
-      # Built locally: docker build -t eda-kpi-backend:local .
-      # Then loaded into the kind cluster: kind load docker-image eda-kpi-backend:local
+      # Built locally: docker build -t eda-kpis-backend:v1 .
+      # Then loaded into the kind cluster: kind load docker-image eda-kpis-backend:v1
       repository: eda-kpis-backend
       tag: "v1"
       pullPolicy: Never
@@ -122,7 +122,7 @@ services:
         kind: ClusterSecretStore
       dataFrom:
         - extract:
-            key: eda-kpi-backend/config
+            key: eda-kpis-backend/config
     envFrom:
       # Non-sensitive values from the ConfigMap above.
       - configMapRef:
