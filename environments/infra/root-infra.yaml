@@ -1,0 +1,33 @@
+# App-of-Apps root. Applying THIS ONE manifest bootstraps every
+# cluster-wide infra Application in this directory (external-secrets.yaml,
+# vault.yaml, and anything added later) - ArgoCD Applications are just
+# Kubernetes resources, so a source pointing at a directory of them works
+# the same as pointing at a directory of Deployments.
+#
+# This manifest itself must be applied manually once per cluster
+# (kubectl apply -f argocd/infra/root-infra.yaml) - after that, adding a
+# new file to argocd/infra/ and pushing is enough; ArgoCD picks it up
+# automatically via selfHeal.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: infra-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Mohamed-ElSayed215/EDA-Kpis.git
+    targetRevision: main
+    path: environments/infra
+    directory:
+      recurse: false
+      exclude: "root-infra.yaml" # don't let this Application manage itself
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

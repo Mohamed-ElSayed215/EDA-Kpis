@@ -1,0 +1,59 @@
+# Cluster-wide infrastructure, same reasoning as external-secrets.yaml.
+#
+# NOTE: `server.dev.enabled: true` runs Vault in-memory, unsealed, with a
+# hardcoded root token ("root"). This is ONLY appropriate for local/dev
+# clusters. Before this pattern is reused for stage/prod, dev mode must
+# be replaced with a real backend (Raft/Consul storage) + manual/auto
+# unseal + real auth - that is a deliberate follow-up, not an oversight.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    chart: vault
+    targetRevision: 0.28.1 # pinned - never float on `latest` for cluster-scoped infra
+    helm:
+      values: |
+        server:
+          dev:
+            enabled: true
+            devRootToken: "root"
+          standalone:
+            enabled: false
+          ha:
+            enabled: false
+          dataStorage:
+            enabled: false
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+        injector:
+          enabled: false # not using the sidecar-injector pattern - ESO talks to Vault directly instead
+        ui:
+          enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

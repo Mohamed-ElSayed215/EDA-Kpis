@@ -1,0 +1,24 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "portal.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if and $svc.enabled $svc.keda.enabled (eq $svc.type "deployment") }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+{{- $fullname := include "portal.serviceFullname" (dict "root" $ "serviceName" $name) }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "portal.labels" $ctx | indent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ $fullname }}
+  pollingInterval: {{ $svc.keda.pollingInterval | default 30 }}
+  cooldownPeriod: {{ $svc.keda.cooldownPeriod | default 300 }}
+  minReplicaCount: {{ $svc.keda.minReplicaCount | default 0 }}
+  maxReplicaCount: {{ $svc.keda.maxReplicaCount | default 10 }}
+  triggers:
+{{ toYaml (required (printf "services.%s.keda.triggers must be set when keda.enabled=true" $name) $svc.keda.triggers) | indent 4 }}
+{{- end }}
+{{- end }}

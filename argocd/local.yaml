@@ -1,0 +1,41 @@
+# ArgoCD Application - local
+#
+# NOTE: local (KinD/Minikube/k3d) clusters are typically NOT managed by
+# ArgoCD in practice - engineers usually run `helm upgrade --install`
+# directly against their local cluster for fast iteration. This manifest
+# is included for completeness/symmetry and for teams that do run an
+# in-cluster ArgoCD even locally (e.g. to test GitOps flows themselves).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: portal-local
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Mohamed-ElSayed215/EDA-Kpis.git
+    targetRevision: main
+    path: helm/portal
+    helm:
+      valueFiles:
+        - ../../environments/local/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: portal-local
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m

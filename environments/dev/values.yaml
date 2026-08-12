@@ -1,0 +1,49 @@
+# Dev environment - shared dev cluster. Basic resources only; no
+# autoscaling, no HA hardening, no monitoring stack yet.
+
+global:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 48Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+  hpa:
+    enabled: false
+  keda:
+    enabled: false
+  pdb:
+    enabled: false
+  networkPolicy:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+  podMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+  externalSecret:
+    enabled: false
+  podAntiAffinity:
+    enabled: false
+
+services:
+  frontend:
+    replicaCount: 1
+    image:
+      tag: "dev"
+    ingress:
+      enabled: true
+      className: nginx
+      hosts:
+        - host: frontend.dev.your-org.example
+          paths:
+            - path: /
+              pathType: Prefix
+
+  backend:
+    replicaCount: 1
+    image:
+      tag: "dev"

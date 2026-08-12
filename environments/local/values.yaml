@@ -1,0 +1,132 @@
+# Local environment - kind cluster.
+# No registry (no Harbor) here: images are built locally with `docker build`
+# and loaded straight into the kind cluster's nodes with `kind load
+# docker-image`, so no imagePullSecrets and no pull from anywhere are needed.
+global:
+  imagePullSecrets: []
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  hpa:
+    enabled: false
+  keda:
+    enabled: false
+  pdb:
+    enabled: false
+  networkPolicy:
+    enabled: false
+  serviceMonitor:
+    enabled: false
+  podMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+  externalSecret:
+    enabled: false
+  topologySpreadConstraints: []
+  podAntiAffinity:
+    enabled: false
+
+services:
+  frontend:
+    replicaCount: 1
+    containerPort: 8080
+    image:
+      # Built locally: docker build -t eda-kpis:local .
+      # Then loaded into the kind cluster: kind load docker-image eda-kpis:local
+      repository: eda-kpis-frontend
+      tag: "v1"
+      # Never (not IfNotPresent/Always): this image exists ONLY inside the
+      # kind node's local image cache — there is no registry to pull from,
+      # so the kubelet must never attempt one.
+      pullPolicy: Never
+    ingress:
+      enabled: false
+    readinessProbe:
+      enabled: false
+    livenessProbe:
+      enabled: false
+    volumes:
+      - name: nginx-cache
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
+      - name: nginx-conf-d
+        emptyDir: {}
+    volumeMounts:
+      - name: nginx-cache
+        mountPath: /var/cache/nginx
+      - name: nginx-run
+        mountPath: /var/run
+      - name: nginx-conf-d
+        mountPath: /etc/nginx/conf.d
+
+  backend:
+    replicaCount: 1
+    containerPort: 3000
+    image:
+      # Built locally: docker build -t eda-kpi-backend:local .
+      # Then loaded into the kind cluster: kind load docker-image eda-kpi-backend:local
+      repository: eda-kpis-backend
+      tag: "v1"
+      pullPolicy: Never
+    ingress:
+      enabled: false
+    readinessProbe:
+      enabled: false
+    livenessProbe:
+      enabled: false
+
+    # Non-sensitive config, rendered as a ConfigMap by templates/configmap.yaml
+    # under the custom name set in nameOverride below.
+    configMap:
+      enabled: true
+      nameOverride: eda-kpis-cm-backend
+      data:
+        MODE: "LOCAL"
+        PORT: "3000"
+        DB_SSL: "false"
+        RUN_MIGRATIONS: "true"
+        LOGGING: "true"
+        LOGGING_TYPE: "console"
+        CONSOLE_LOG_LEVEL: "debug"
+        FILE_LOG_LEVEL_1: "info"
+        FILE_LOG_LEVEL_2: "error"
+        JWT_EXPIRE: "86400"
+        IGNORE_JWT_EXPIRE: "false"
+        AXIOS_TIMEOUT: "60000"
+        AXIOS_REDIRECTS: "5"
+        AXIOS_TIMEOUTAXIOS_REDIRECTS: "5"
+        FILE_STORAGE_DRIVER: "local"
+        CORS_ORIGIN: "http://localhost:8080"
+        POSTGRES_HOST: "postgres.your-namespace.svc.cluster.local"
+        POSTGRES_PORT: "5432"
+        POSTGRES_DATABASE: "eda_kpis"
+
+    # All backend SECRETS come from Vault via ESO. `dataFrom.extract`
+    # pulls every key under this one Vault path at once - no need to
+    # list all fields individually (see `data:` alternative in
+    # externalsecret.yaml if you ever need per-key renaming instead).
+    secret:
+      enabled: false
+    externalSecret:
+      enabled: true
+      nameOverride: eda-kpis-secrets-backend
+      refreshInterval: 15s
+      secretStoreRef:
+        name: vault-backend
+        kind: ClusterSecretStore
+      dataFrom:
+        - extract:
+            key: eda-kpi-backend/config
+    envFrom:
+      # Non-sensitive values from the ConfigMap above.
+      - configMapRef:
+          name: eda-kpis-cm-backend
+      # Sensitive values synced from Vault by the ExternalSecret above.
+      - secretRef:
+          name: eda-kpis-secrets-backend

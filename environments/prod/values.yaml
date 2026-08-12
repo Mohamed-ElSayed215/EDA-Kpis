@@ -1,0 +1,112 @@
+# Production environment - full high-availability posture.
+#
+# SECURITY NOTE: externalSecret.enabled=true is the default here on
+# purpose. Do NOT populate services.*.secret.data/stringData with real
+# values in this file - plain Secret values committed to Git are
+# plaintext in your repo history forever. Use ExternalSecret (backed by
+# your secret manager of choice) for anything real in prod.
+
+global:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  minReadySeconds: 10
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
+
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 65
+      - type: Resource
+        resource:
+          name: memory
+          target:
+            type: Utilization
+            averageUtilization: 75
+
+  pdb:
+    enabled: true
+    minAvailable: 2
+
+  podAntiAffinity:
+    enabled: true
+    type: required
+    topologyKey: kubernetes.io/hostname
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+
+  networkPolicy:
+    enabled: true
+    policyTypes: ["Ingress", "Egress"]
+    ingress:
+      - from:
+          - namespaceSelector: {}
+    egress:
+      - to:
+          - namespaceSelector: {}
+        ports:
+          - protocol: TCP
+            port: 53
+          - protocol: UDP
+            port: 53
+
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+  podMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+
+  externalSecret:
+    enabled: true
+    secretStoreRef:
+      name: prod-secret-store
+      kind: ClusterSecretStore
+    refreshInterval: 1h
+
+services:
+  frontend:
+    replicaCount: 3
+    image:
+      tag: "" # set explicitly per release via --set or CI-pinned values file - never floating in prod
+    ingress:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: portal.your-org.example
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: portal-tls
+          hosts:
+            - portal.your-org.example
+
+  backend:
+    replicaCount: 3
+    image:
+      tag: ""

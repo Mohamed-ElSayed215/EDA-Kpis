@@ -1,0 +1,23 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "portal.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if and $svc.enabled $svc.configMap.enabled }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+{{- $cmName := $svc.configMap.nameOverride | default (include "portal.serviceFullname" (dict "root" $ "serviceName" $name)) }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $cmName }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "portal.labels" $ctx | indent 4 }}
+{{- if $svc.configMap.data }}
+data:
+{{ toYaml $svc.configMap.data | indent 2 }}
+{{- end }}
+{{- if $svc.configMap.binaryData }}
+binaryData:
+{{ toYaml $svc.configMap.binaryData | indent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}

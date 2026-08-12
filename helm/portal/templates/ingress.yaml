@@ -1,0 +1,42 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "portal.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if and $svc.enabled $svc.ingress.enabled }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+{{- $fullname := include "portal.serviceFullname" (dict "root" $ "serviceName" $name) }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "portal.labels" $ctx | indent 4 }}
+  {{- if $svc.ingress.annotations }}
+  annotations:
+{{ toYaml $svc.ingress.annotations | indent 4 }}
+  {{- end }}
+spec:
+  {{- if $svc.ingress.className }}
+  ingressClassName: {{ $svc.ingress.className }}
+  {{- end }}
+  {{- if $svc.ingress.tls }}
+  tls:
+{{ toYaml $svc.ingress.tls | indent 4 }}
+  {{- end }}
+  rules:
+    {{- range $svc.ingress.hosts }}
+    - host: {{ .host }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ $fullname }}
+                port:
+                  number: {{ $svc.service.port | default 80 }}
+          {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

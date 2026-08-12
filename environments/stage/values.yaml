@@ -1,0 +1,59 @@
+# Stage environment - replica=2, monitoring enabled, behaves close to
+# production so it can be trusted as a pre-prod signal. Not fully HA
+# (that's reserved for prod) but exercises the same observability and
+# disruption-budget paths prod uses.
+
+global:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+  podMonitor:
+    enabled: false
+  prometheusRule:
+    enabled: false
+
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+  podAntiAffinity:
+    enabled: true
+    type: preferred
+    topologyKey: kubernetes.io/hostname
+
+  networkPolicy:
+    enabled: false
+
+  hpa:
+    enabled: false
+  keda:
+    enabled: false
+  externalSecret:
+    enabled: false
+
+services:
+  frontend:
+    replicaCount: 2
+    image:
+      tag: "stage"
+    ingress:
+      enabled: true
+      className: nginx
+      hosts:
+        - host: frontend.stage.your-org.example
+          paths:
+            - path: /
+              pathType: Prefix
+
+  backend:
+    replicaCount: 2
+    image:
+      tag: "stage"
