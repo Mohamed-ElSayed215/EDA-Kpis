@@ -103,9 +103,14 @@ services:
         AXIOS_TIMEOUTAXIOS_REDIRECTS: "5"
         FILE_STORAGE_DRIVER: "local"
         CORS_ORIGIN: "http://localhost:8080"
-        POSTGRES_HOST: "postgres.your-namespace.svc.cluster.local"
+        # Points at the docker-compose Postgres container, reachable by
+        # name after: docker network connect kind eda-kpis-db
+        POSTGRES_HOST: "eda-kpis-db"
         POSTGRES_PORT: "5432"
         POSTGRES_DATABASE: "eda_kpis"
+        # Points at the docker-compose Redis container, reachable by name
+        # after: docker network connect kind eda-kpis-redis
+        REDIS_CONFIG: "redis://eda-kpis-redis:6379"
 
     # All backend SECRETS come from Vault via ESO. `dataFrom.extract`
     # pulls every key under this one Vault path at once - no need to
