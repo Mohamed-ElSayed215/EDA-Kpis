@@ -1,0 +1,66 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "eda-kpis.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if $svc.enabled }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+{{- $fullname := include "eda-kpis.serviceFullname" (dict "root" $ "serviceName" $name) }}
+
+{{- if $svc.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+{{- if $svc.serviceMonitor.labels }}
+{{ toYaml $svc.serviceMonitor.labels | indent 4 }}
+{{- end }}
+spec:
+  selector:
+    matchLabels:
+{{ include "eda-kpis.selectorLabels" $ctx | indent 6 }}
+  endpoints:
+    - port: {{ $svc.serviceMonitor.port | default "http" }}
+      path: {{ $svc.serviceMonitor.path | default "/metrics" }}
+      interval: {{ $svc.serviceMonitor.interval | default "30s" }}
+{{- end }}
+
+{{- if $svc.podMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+{{- if $svc.podMonitor.labels }}
+{{ toYaml $svc.podMonitor.labels | indent 4 }}
+{{- end }}
+spec:
+  selector:
+    matchLabels:
+{{ include "eda-kpis.selectorLabels" $ctx | indent 6 }}
+  podMetricsEndpoints:
+    - port: {{ $svc.podMonitor.port | default "http" }}
+      path: {{ $svc.podMonitor.path | default "/metrics" }}
+      interval: {{ $svc.podMonitor.interval | default "30s" }}
+{{- end }}
+
+{{- if $svc.prometheusRule.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+spec:
+  groups:
+{{ toYaml (required (printf "services.%s.prometheusRule.groups must be set when enabled" $name) $svc.prometheusRule.groups) | indent 4 }}
+{{- end }}
+
+{{- end }}
+{{- end }}

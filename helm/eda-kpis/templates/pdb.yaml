@@ -1,0 +1,25 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "eda-kpis.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if and $svc.enabled $svc.pdb.enabled (or (eq $svc.type "deployment") (eq $svc.type "statefulset")) }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "eda-kpis.serviceFullname" (dict "root" $ "serviceName" $name) }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+spec:
+  {{- if $svc.pdb.minAvailable }}
+  minAvailable: {{ $svc.pdb.minAvailable }}
+  {{- else if $svc.pdb.maxUnavailable }}
+  maxUnavailable: {{ $svc.pdb.maxUnavailable }}
+  {{- else }}
+  {{ fail (printf "services.%s.pdb: exactly one of minAvailable or maxUnavailable must be set" $name) }}
+  {{- end }}
+  selector:
+    matchLabels:
+{{ include "eda-kpis.selectorLabels" $ctx | indent 6 }}
+{{- end }}
+{{- end }}

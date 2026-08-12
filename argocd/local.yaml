@@ -8,7 +8,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: portal-local
+  name: eda-kpis-local
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "0"
@@ -17,13 +17,13 @@ spec:
   source:
     repoURL: https://github.com/Mohamed-ElSayed215/EDA-Kpis.git
     targetRevision: main
-    path: helm/portal
+    path: helm/eda-kpis
     helm:
       valueFiles:
         - ../../environments/local/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: portal-local
+    namespace: eda-kpis-local
   syncPolicy:
     automated:
       prune: true

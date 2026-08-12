@@ -1,0 +1,25 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "eda-kpis.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if and $svc.enabled $svc.pvc.enabled (ne $svc.type "statefulset") }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+{{- range $svc.pvc.claims }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ printf "%s-%s" (include "eda-kpis.serviceFullname" (dict "root" $ "serviceName" $name)) .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+spec:
+  accessModes:
+{{ toYaml (.accessModes | default (list "ReadWriteOnce")) | indent 4 }}
+  {{- if .storageClassName }}
+  storageClassName: {{ .storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .size }}
+{{- end }}
+{{- end }}
+{{- end }}

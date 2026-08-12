@@ -1,0 +1,132 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "eda-kpis.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if $svc.enabled }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+{{- $fullname := include "eda-kpis.serviceFullname" (dict "root" $ "serviceName" $name) }}
+---
+{{- if eq $svc.type "deployment" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+  {{- if $svc.annotations }}
+  annotations:
+{{ toYaml $svc.annotations | indent 4 }}
+  {{- end }}
+spec:
+  {{- if not $svc.hpa.enabled }}
+  replicas: {{ $svc.replicaCount | default 1 }}
+  {{- end }}
+  revisionHistoryLimit: {{ $svc.revisionHistoryLimit | default 5 }}
+  progressDeadlineSeconds: {{ $svc.progressDeadlineSeconds | default 600 }}
+  minReadySeconds: {{ $svc.minReadySeconds | default 0 }}
+  selector:
+    matchLabels:
+{{ include "eda-kpis.selectorLabels" $ctx | indent 6 }}
+  strategy:
+    type: {{ $svc.updateStrategy.type | default "RollingUpdate" }}
+    {{- if eq ($svc.updateStrategy.type | default "RollingUpdate") "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ $svc.updateStrategy.rollingUpdate.maxUnavailable | default 0 }}
+      maxSurge: {{ $svc.updateStrategy.rollingUpdate.maxSurge | default 1 }}
+    {{- end }}
+  template:
+{{ include "eda-kpis.podTemplateSpec" $ctx | indent 4 }}
+
+{{- else if eq $svc.type "statefulset" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+spec:
+  serviceName: {{ $fullname }}
+  {{- if not $svc.hpa.enabled }}
+  replicas: {{ $svc.replicaCount | default 1 }}
+  {{- end }}
+  revisionHistoryLimit: {{ $svc.revisionHistoryLimit | default 5 }}
+  podManagementPolicy: {{ $svc.podManagementPolicy | default "OrderedReady" }}
+  selector:
+    matchLabels:
+{{ include "eda-kpis.selectorLabels" $ctx | indent 6 }}
+  updateStrategy:
+    type: {{ $svc.updateStrategy.type | default "RollingUpdate" }}
+  template:
+{{ include "eda-kpis.podTemplateSpec" $ctx | indent 4 }}
+  {{- if $svc.pvc.enabled }}
+  volumeClaimTemplates:
+    {{- range $svc.pvc.claims }}
+    - metadata:
+        name: {{ .name }}
+      spec:
+        accessModes: {{ .accessModes | default (list "ReadWriteOnce") | toYaml | nindent 10 }}
+        {{- if .storageClassName }}
+        storageClassName: {{ .storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .size }}
+    {{- end }}
+  {{- end }}
+
+{{- else if eq $svc.type "cronjob" }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+spec:
+  schedule: {{ required (printf "services.%s.schedule is required for type=cronjob" $name) $svc.schedule | quote }}
+  concurrencyPolicy: {{ $svc.concurrencyPolicy | default "Forbid" }}
+  suspend: {{ $svc.suspend | default false }}
+  successfulJobsHistoryLimit: {{ $svc.successfulJobsHistoryLimit | default 3 }}
+  failedJobsHistoryLimit: {{ $svc.failedJobsHistoryLimit | default 1 }}
+  {{- if $svc.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ $svc.startingDeadlineSeconds }}
+  {{- end }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ $svc.backoffLimit | default 2 }}
+      {{- if $svc.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ $svc.activeDeadlineSeconds }}
+      {{- end }}
+      template:
+{{ include "eda-kpis.podTemplateSpec" $ctx | indent 8 }}
+
+{{- else if eq $svc.type "job" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+  {{- if $svc.hooks }}
+  annotations:
+{{ toYaml $svc.hooks | indent 4 }}
+  {{- end }}
+spec:
+  backoffLimit: {{ $svc.backoffLimit | default 3 }}
+  completions: {{ $svc.completions | default 1 }}
+  parallelism: {{ $svc.parallelism | default 1 }}
+  {{- if $svc.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $svc.activeDeadlineSeconds }}
+  {{- end }}
+  {{- if $svc.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ $svc.ttlSecondsAfterFinished }}
+  {{- end }}
+  template:
+{{ include "eda-kpis.podTemplateSpec" $ctx | indent 4 }}
+
+{{- else }}
+{{ fail (printf "services.%s.type '%s' is not supported. Must be one of: deployment, statefulset, cronjob, job" $name $svc.type) }}
+{{- end }}
+{{- end }}
+{{- end }}

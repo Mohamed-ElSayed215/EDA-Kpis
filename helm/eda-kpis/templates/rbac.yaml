@@ -1,0 +1,65 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "eda-kpis.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if $svc.enabled }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+{{- $fullname := include "eda-kpis.serviceFullname" (dict "root" $ "serviceName" $name) }}
+{{- $saName := include "eda-kpis.serviceAccountName" $ctx }}
+
+{{- if $svc.rbac.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+rules:
+{{ toYaml $svc.rbac.rules | indent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $fullname }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $saName }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+
+{{- if $svc.clusterRbac.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullname }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+rules:
+{{ toYaml $svc.clusterRbac.rules | indent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullname }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $fullname }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $saName }}
+    namespace: {{ $.Release.Namespace }}
+{{- end }}
+
+{{- end }}
+{{- end }}

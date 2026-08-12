@@ -1,0 +1,21 @@
+Portal chart deployed to namespace "{{ .Release.Namespace }}" (release "{{ .Release.Name }}").
+
+Enabled services:
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "portal.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if $svc.enabled }}
+  - {{ $name }} ({{ $svc.type }})
+{{- if and $svc.service.enabled (eq $svc.type "deployment") }}
+    Service:  {{ include "portal.serviceFullname" (dict "root" $ "serviceName" $name) }}.{{ $.Release.Namespace }}.svc.cluster.local:{{ $svc.service.port | default 80 }}
+{{- end }}
+{{- if $svc.ingress.enabled }}
+{{- range $svc.ingress.hosts }}
+    Ingress:  http{{ if $svc.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+Validate the release:
+  helm get manifest {{ .Release.Name }} -n {{ .Release.Namespace }} | kubectl apply --dry-run=server -f -
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}

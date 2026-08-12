@@ -55,15 +55,15 @@ services:
         emptyDir: {}
       - name: nginx-run
         emptyDir: {}
-      - name: nginx-conf-d
+      - name: tmp
         emptyDir: {}
     volumeMounts:
       - name: nginx-cache
         mountPath: /var/cache/nginx
       - name: nginx-run
         mountPath: /var/run
-      - name: nginx-conf-d
-        mountPath: /etc/nginx/conf.d
+      - name: tmp
+        mountPath: /tmp
 
   backend:
     replicaCount: 1

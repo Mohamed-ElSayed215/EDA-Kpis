@@ -1,22 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: portal-prod
+  name: eda-kpis-prod
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/portal-platform.git
+    repoURL: https://github.com/your-org/eda-kpis-platform.git
     targetRevision: HEAD
-    path: helm/portal
+    path: helm/eda-kpis
     helm:
       valueFiles:
         - ../../environments/prod/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: portal-prod
+    namespace: eda-kpis-prod
   syncPolicy:
     automated:
       prune: true

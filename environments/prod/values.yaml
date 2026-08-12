@@ -97,14 +97,14 @@ services:
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
-        - host: portal.your-org.example
+        - host: eda-kpis.your-org.example
           paths:
             - path: /
               pathType: Prefix
       tls:
-        - secretName: portal-tls
+        - secretName: eda-kpis-tls
           hosts:
-            - portal.your-org.example
+            - eda-kpis.your-org.example
 
   backend:
     replicaCount: 3

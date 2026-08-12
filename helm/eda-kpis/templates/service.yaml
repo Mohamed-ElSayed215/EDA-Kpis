@@ -1,0 +1,30 @@
+{{- range $name, $rawSvc := .Values.services }}
+{{- $svc := include "eda-kpis.mergedService" (dict "root" $ "serviceName" $name) | fromYaml }}
+{{- if and $svc.enabled $svc.service.enabled }}
+{{- $ctx := dict "root" $ "svc" $svc "serviceName" $name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "eda-kpis.serviceFullname" (dict "root" $ "serviceName" $name) }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{ include "eda-kpis.labels" $ctx | indent 4 }}
+  {{- if $svc.service.annotations }}
+  annotations:
+{{ toYaml $svc.service.annotations | indent 4 }}
+  {{- end }}
+spec:
+  type: {{ $svc.service.type | default "ClusterIP" }}
+  ports:
+    - name: http
+      port: {{ $svc.service.port | default 80 }}
+      targetPort: {{ $svc.service.targetPort | default $svc.containerPort | default 8080 }}
+      protocol: TCP
+      {{- if and (eq ($svc.service.type | default "ClusterIP") "NodePort") $svc.service.nodePort }}
+      nodePort: {{ $svc.service.nodePort }}
+      {{- end }}
+  selector:
+{{ include "eda-kpis.selectorLabels" $ctx | indent 4 }}
+{{- end }}
+{{- end }}

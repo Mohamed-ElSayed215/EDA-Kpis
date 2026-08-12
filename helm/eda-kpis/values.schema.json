@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Portal chart values",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["services"],
+  "properties": {
+    "global": {
+      "type": "object",
+      "description": "Defaults inherited by every service. Intentionally permissive - see services.* for the fields we validate strictly.",
+      "additionalProperties": true
+    },
+    "services": {
+      "type": "object",
+      "description": "Map of serviceName -> service config. Adding a new service = adding a new key here.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Master switch for the whole service. Defaults to true if omitted at merge time, but we require it be explicit here for clarity."
+          },
+          "type": {
+            "type": "string",
+            "enum": ["deployment", "statefulset", "cronjob", "job"],
+            "description": "Workload discriminator consumed by templates/workload.yaml. This is the field that lets one template set support unlimited services."
+          },
+          "replicaCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "image": {
+            "type": "object",
+            "required": ["repository"],
+            "properties": {
+              "repository": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tag": {
+                "type": "string"
+              },
+              "pullPolicy": {
+                "type": "string",
+                "enum": ["Always", "IfNotPresent", "Never"]
+              }
+            },
+            "additionalProperties": true
+          },
+          "containerPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "schedule": {
+            "type": "string",
+            "description": "Required at render time (enforced via `required` in workload.yaml) when type=cronjob. Standard 5-field cron syntax."
+          },
+          "resources": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "service": {
+            "type": "object",
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "type": {
+                "type": "string",
+                "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+              },
+              "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+            },
+            "additionalProperties": true
+          },
+          "pdb": {
+            "type": "object",
+            "properties": {
+              "enabled": { "type": "boolean" },
+              "minAvailable": {},
+              "maxUnavailable": {}
+            },
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}
