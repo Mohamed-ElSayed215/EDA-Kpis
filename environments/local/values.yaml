@@ -39,7 +39,7 @@ services:
       # Built locally: docker build -t eda-kpis-frontend:v1 .
       # Then loaded into the kind cluster: kind load docker-image eda-kpis-frontend:v1
       repository: eda-kpis-frontend
-      tag: "v1"
+      tag: "v2"
       # Never (not IfNotPresent/Always): this image exists ONLY inside the
       # kind node's local image cache — there is no registry to pull from,
       # so the kubelet must never attempt one.
