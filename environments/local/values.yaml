@@ -113,12 +113,20 @@ services:
         CORS_ORIGIN: "http://localhost:8080"
         # Points at the docker-compose Postgres container, reachable by
         # name after: docker network connect kind eda-kpis-db
-        POSTGRES_HOST: "eda-kpis-db"
+        #  POSTGRES_HOST: "eda-kpis-db"
+        #POSTGRES_PORT: "5432"
+        #POSTGRES_DATABASE: "eda_kpis"
+        # Real standalone DB server (eda-mobdb-test), reachable directly
+        # over the network — no docker network connect trick needed here.
+        POSTGRES_HOST: "10.10.1.3"
         POSTGRES_PORT: "5432"
         POSTGRES_DATABASE: "eda_kpis"
+        # Redis requires a password (see requirepass in /etc/redis.conf on
+        # the DB server) — included directly in the connection string.
+        REDIS_CONFIG: "redis://:P@ssw0rd@123@10.10.1.3:6379"  
         # Points at the docker-compose Redis container, reachable by name
         # after: docker network connect kind eda-kpis-redis
-        REDIS_CONFIG: "redis://eda-kpis-redis:6379"
+          # REDIS_CONFIG: "redis://eda-kpis-redis:6379"
     # All backend SECRETS come from Vault via ESO. `dataFrom.extract`
     # pulls every key under this one Vault path at once - no need to
     # list all fields individually (see `data:` alternative in
