@@ -1,7 +1,3 @@
-# Local environment - kind cluster.
-# No registry (no Harbor) here: images are built locally with `docker build`
-# and loaded straight into the kind cluster's nodes with `kind load
-# docker-image`, so no imagePullSecrets and no pull from anywhere are needed.
 global:
   imagePullSecrets: []
   resources:
@@ -30,7 +26,6 @@ global:
   topologySpreadConstraints: []
   podAntiAffinity:
     enabled: false
-
 services:
   frontend:
     replicaCount: 1
@@ -39,13 +34,28 @@ services:
       # Built locally: docker build -t eda-kpis-frontend:v1 .
       # Then loaded into the kind cluster: kind load docker-image eda-kpis-frontend:v1
       repository: eda-kpis-frontend
-      tag: "v2"
+      tag: "v3"
       # Never (not IfNotPresent/Always): this image exists ONLY inside the
       # kind node's local image cache — there is no registry to pull from,
       # so the kubelet must never attempt one.
       pullPolicy: Never
     ingress:
       enabled: false
+    # NOTE: this value must be reachable from the USER'S BROWSER, not from
+    # inside the cluster — the frontend's JS runs client-side. For local
+    # dev that's the kubectl port-forward address; for staging/prod this
+    # would be the real public Ingress domain for the backend. Consumed at
+    # container startup by docker/generate-env-config.sh (envsubst into
+    # assets/env.js), NOT baked into the JS bundle at build time — so the
+    # same image can be reused across environments just by changing this.
+    configMap:
+      enabled: true
+      nameOverride: eda-kpis-cm-frontend
+      data:
+        API_URL: "http://localhost:3000/kpi-service/api/v1"
+    envFrom:
+      - configMapRef:
+          name: eda-kpis-cm-frontend
     readinessProbe:
       enabled: false
     livenessProbe:
@@ -64,7 +74,6 @@ services:
         mountPath: /var/run
       - name: tmp
         mountPath: /tmp
-
   backend:
     replicaCount: 1
     containerPort: 3000
@@ -80,7 +89,6 @@ services:
       enabled: false
     livenessProbe:
       enabled: false
-
     # Non-sensitive config, rendered as a ConfigMap by templates/configmap.yaml
     # under the custom name set in nameOverride below.
     configMap:
@@ -111,7 +119,6 @@ services:
         # Points at the docker-compose Redis container, reachable by name
         # after: docker network connect kind eda-kpis-redis
         REDIS_CONFIG: "redis://eda-kpis-redis:6379"
-
     # All backend SECRETS come from Vault via ESO. `dataFrom.extract`
     # pulls every key under this one Vault path at once - no need to
     # list all fields individually (see `data:` alternative in
