@@ -52,7 +52,7 @@ services:
       enabled: true
       nameOverride: eda-kpis-cm-frontend
       data:
-        API_URL: "http://localhost:3000/kpi-service/api/v1"
+        API_URL: "http://localhost:3001/kpi-service/api/v1"
     envFrom:
       - configMapRef:
           name: eda-kpis-cm-frontend
